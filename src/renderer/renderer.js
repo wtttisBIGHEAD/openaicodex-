@@ -13,34 +13,51 @@ const elements = {
   planText: document.getElementById("planText"),
   statusDot: document.getElementById("statusDot"),
   statusText: document.getElementById("statusText"),
-  liquidFill: document.getElementById("liquidFill"),
   langBtn: document.getElementById("langBtn"),
   pinBtn: document.getElementById("pinBtn"),
   refreshBtn: document.getElementById("refreshBtn"),
   minimizeBtn: document.getElementById("minimizeBtn"),
-  closeBtn: document.getElementById("closeBtn")
+  closeBtn: document.getElementById("closeBtn"),
+  codexProviderBtn: document.getElementById("codexProviderBtn"),
+  deepseekProviderBtn: document.getElementById("deepseekProviderBtn"),
+  deepseekKeyForm: document.getElementById("deepseekKeyForm"),
+  deepseekKeyInput: document.getElementById("deepseekKeyInput"),
+  deepseekKeySaveBtn: document.getElementById("deepseekKeySaveBtn")
 };
 
 const copy = {
   zh: {
     langButton: "EN",
-    brandName: "Codex 额度",
+    codexBrandName: "Codex 额度",
+    deepseekBrandName: "DeepSeek 余额",
     loading: "读取中",
-    ready: "额度充足",
+    ready: "可用",
     warn: "额度偏低",
-    empty: "额度已用完",
+    empty: "不可用",
     error: "读取失败",
-    remaining: "剩余",
-    primaryLabel: "5小时窗口",
-    secondaryLabel: "7天窗口",
-    planLabel: "计划",
+    remainingCodex: "剩余",
+    remainingDeepSeek: "总余额",
+    primaryLabelCodex: "5小时窗口",
+    secondaryLabelCodex: "7天窗口",
+    planLabelCodex: "计划",
+    primaryLabelDeepSeek: "账户状态",
+    secondaryLabelDeepSeek: "赠送余额",
+    planLabelDeepSeek: "充值余额",
     unknown: "未知",
-    refreshing: "正在读取 Codex 额度...",
+    refreshingCodex: "正在读取 Codex 额度...",
+    refreshingDeepSeek: "正在读取 DeepSeek 余额...",
     refreshed: "已更新",
     used: "已用",
     resets: "重置",
     noWindow: "暂无窗口数据",
     retry: "点击刷新重试",
+    missingKey: "请先保存 DeepSeek API Key",
+    keySaved: "API Key 已保存",
+    keyPlaceholder: "DeepSeek API Key",
+    keyButton: "保存",
+    savedKey: "已保存",
+    envKey: "来自环境变量",
+    noKey: "未配置",
     pinOn: "取消置顶",
     pinOff: "置顶",
     refresh: "刷新",
@@ -49,23 +66,36 @@ const copy = {
   },
   en: {
     langButton: "中",
-    brandName: "Codex Quota",
+    codexBrandName: "Codex Quota",
+    deepseekBrandName: "DeepSeek Balance",
     loading: "Loading",
-    ready: "Quota available",
+    ready: "Available",
     warn: "Quota low",
-    empty: "Quota depleted",
+    empty: "Unavailable",
     error: "Read failed",
-    remaining: "left",
-    primaryLabel: "5h window",
-    secondaryLabel: "7d window",
-    planLabel: "Plan",
+    remainingCodex: "left",
+    remainingDeepSeek: "balance",
+    primaryLabelCodex: "5h window",
+    secondaryLabelCodex: "7d window",
+    planLabelCodex: "Plan",
+    primaryLabelDeepSeek: "Status",
+    secondaryLabelDeepSeek: "Granted",
+    planLabelDeepSeek: "Topped up",
     unknown: "Unknown",
-    refreshing: "Reading Codex quota...",
+    refreshingCodex: "Reading Codex quota...",
+    refreshingDeepSeek: "Reading DeepSeek balance...",
     refreshed: "Updated",
     used: "used",
     resets: "resets",
     noWindow: "No window data",
     retry: "Refresh to retry",
+    missingKey: "Save a DeepSeek API key first",
+    keySaved: "API key saved",
+    keyPlaceholder: "DeepSeek API Key",
+    keyButton: "Save",
+    savedKey: "Saved",
+    envKey: "From environment",
+    noKey: "Not configured",
     pinOn: "Unpin",
     pinOff: "Pin",
     refresh: "Refresh",
@@ -75,7 +105,8 @@ const copy = {
 };
 
 let language = localStorage.getItem("language") || (navigator.language.startsWith("zh") ? "zh" : "en");
-let lastQuota = null;
+let providerSettings = { provider: "codex", hasDeepseekApiKey: false, maskedDeepseekApiKey: "", keySource: "none" };
+let lastProviderData = null;
 let lastError = null;
 const quotaApi = window.codexQuota;
 
@@ -93,16 +124,27 @@ function setButtonLabel(button, label) {
   button.setAttribute("aria-label", label);
 }
 
+function provider() {
+  return providerSettings.provider === "deepseek" ? "deepseek" : "codex";
+}
+
 function applyStaticCopy() {
   setText(elements.langBtn, t("langButton"));
-  setText(elements.brandName, t("brandName"));
-  setText(elements.remainingLabel, t("remaining"));
-  setText(elements.primaryLabel, t("primaryLabel"));
-  setText(elements.secondaryLabel, t("secondaryLabel"));
-  setText(elements.planLabel, t("planLabel"));
+  setText(elements.brandName, provider() === "deepseek" ? t("deepseekBrandName") : t("codexBrandName"));
   setButtonLabel(elements.refreshBtn, t("refresh"));
   setButtonLabel(elements.minimizeBtn, t("minimize"));
   setButtonLabel(elements.closeBtn, t("close"));
+  setText(elements.deepseekKeySaveBtn, t("keyButton"));
+  elements.deepseekKeyInput.placeholder = t("keyPlaceholder");
+}
+
+function setProviderUi() {
+  const isDeepSeek = provider() === "deepseek";
+  elements.body.dataset.provider = provider();
+  elements.codexProviderBtn.classList.toggle("active", !isDeepSeek);
+  elements.deepseekProviderBtn.classList.toggle("active", isDeepSeek);
+  elements.deepseekKeyForm.classList.toggle("hidden", !isDeepSeek);
+  setText(elements.brandName, isDeepSeek ? t("deepseekBrandName") : t("codexBrandName"));
 }
 
 function setLoading() {
@@ -110,10 +152,10 @@ function setLoading() {
   elements.trafficLight.className = "traffic-light loading";
   elements.statusDot.className = "status-dot loading";
   setText(elements.stateText, t("loading"));
-  setText(elements.statusText, t("refreshing"));
+  setText(elements.statusText, provider() === "deepseek" ? t("refreshingDeepSeek") : t("refreshingCodex"));
 }
 
-function setState(state, quota) {
+function setState(state, data) {
   elements.body.dataset.state = state;
   elements.trafficLight.className = `traffic-light ${state}`;
   elements.statusDot.className = `status-dot ${state}`;
@@ -125,7 +167,7 @@ function setState(state, quota) {
   }
 
   setText(elements.stateText, t(state));
-  const fetchedAt = quota?.fetchedAt ? new Date(quota.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+  const fetchedAt = data?.fetchedAt ? new Date(data.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
   setText(elements.statusText, fetchedAt ? `${t("refreshed")} ${fetchedAt}` : t("refreshed"));
 }
 
@@ -147,8 +189,16 @@ function formatWindow(window) {
   return `${used} · ${t("resets")} ${reset.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
 }
 
+function renderProviderData(data) {
+  if (data?.provider === "deepseek") {
+    renderDeepSeekBalance(data);
+  } else {
+    renderQuota(data);
+  }
+}
+
 function renderQuota(quota) {
-  lastQuota = quota;
+  lastProviderData = quota;
   lastError = null;
 
   const remaining = Number(quota?.remainingPercent);
@@ -157,29 +207,100 @@ function renderQuota(quota) {
 
   document.documentElement.style.setProperty("--level", `${safeRemaining}%`);
   setText(elements.remaining, Number.isFinite(remaining) ? `${safeRemaining}%` : "--%");
+  setText(elements.remainingLabel, t("remainingCodex"));
+  setText(elements.primaryLabel, t("primaryLabelCodex"));
   setText(elements.primaryText, formatWindow(quota?.primary));
+  setText(elements.secondaryLabel, t("secondaryLabelCodex"));
   setText(elements.secondaryText, formatWindow(quota?.secondary));
+  setText(elements.planLabel, t("planLabelCodex"));
   setText(elements.planText, quota?.planType || quota?.limitName || t("unknown"));
   setState(state, quota);
 }
 
+function renderDeepSeekBalance(balance) {
+  lastProviderData = balance;
+  lastError = null;
+
+  document.documentElement.style.setProperty("--level", balance.isAvailable ? "100%" : "0%");
+  setText(elements.remaining, `${balance.totalBalance} ${balance.primaryCurrency}`);
+  setText(elements.remainingLabel, t("remainingDeepSeek"));
+  setText(elements.primaryLabel, t("primaryLabelDeepSeek"));
+  setText(elements.primaryText, balance.isAvailable ? t("ready") : t("empty"));
+  setText(elements.secondaryLabel, t("secondaryLabelDeepSeek"));
+  setText(elements.secondaryText, `${balance.grantedBalance} ${balance.primaryCurrency}`);
+  setText(elements.planLabel, t("planLabelDeepSeek"));
+  setText(elements.planText, `${balance.toppedUpBalance} ${balance.primaryCurrency}`);
+  setState(balance.isAvailable ? "ready" : "empty", balance);
+}
+
+function renderMissingDeepSeekKey() {
+  lastProviderData = null;
+  lastError = t("missingKey");
+  document.documentElement.style.setProperty("--level", "0%");
+  setText(elements.remaining, "--");
+  setText(elements.remainingLabel, t("remainingDeepSeek"));
+  setText(elements.primaryLabel, t("primaryLabelDeepSeek"));
+  setText(elements.primaryText, providerSettings.keySource === "environment" ? t("envKey") : t("noKey"));
+  setText(elements.secondaryLabel, t("secondaryLabelDeepSeek"));
+  setText(elements.secondaryText, "--");
+  setText(elements.planLabel, t("planLabelDeepSeek"));
+  setText(elements.planText, "--");
+  setState("error");
+}
+
 function renderError(error) {
+  lastProviderData = null;
   lastError = error?.message || String(error || t("retry"));
   document.documentElement.style.setProperty("--level", "0%");
-  setText(elements.remaining, "--%");
+
+  if (provider() === "deepseek") {
+    setText(elements.remaining, "--");
+    setText(elements.remainingLabel, t("remainingDeepSeek"));
+    setText(elements.primaryLabel, t("primaryLabelDeepSeek"));
+    setText(elements.secondaryLabel, t("secondaryLabelDeepSeek"));
+    setText(elements.planLabel, t("planLabelDeepSeek"));
+  } else {
+    setText(elements.remaining, "--%");
+    setText(elements.remainingLabel, t("remainingCodex"));
+    setText(elements.primaryLabel, t("primaryLabelCodex"));
+    setText(elements.secondaryLabel, t("secondaryLabelCodex"));
+    setText(elements.planLabel, t("planLabelCodex"));
+  }
+
   setText(elements.primaryText, "--");
   setText(elements.secondaryText, "--");
   setText(elements.planText, "--");
   setState("error");
 }
 
-async function refreshQuota() {
+async function loadProviderSettings() {
+  if (!quotaApi?.getProviderSettings) return;
+  providerSettings = await quotaApi.getProviderSettings();
+  setProviderUi();
+}
+
+async function refreshProviderData() {
+  setProviderUi();
+
+  if (provider() === "deepseek" && !providerSettings.hasDeepseekApiKey) {
+    renderMissingDeepSeekKey();
+    return;
+  }
+
   setLoading();
   try {
-    renderQuota(await quotaApi.getQuota());
+    const data = quotaApi.getProviderData ? await quotaApi.getProviderData() : await quotaApi.getQuota();
+    renderProviderData(data);
   } catch (error) {
     renderError(error);
   }
+}
+
+async function setProvider(providerName) {
+  if (!quotaApi?.setProvider) return;
+  providerSettings = await quotaApi.setProvider(providerName);
+  setProviderUi();
+  await refreshProviderData();
 }
 
 async function syncPinnedState() {
@@ -198,10 +319,13 @@ function updatePinned(isPinned) {
 function rerenderLanguage() {
   localStorage.setItem("language", language);
   applyStaticCopy();
+  setProviderUi();
   syncPinnedState();
 
-  if (lastQuota) {
-    renderQuota(lastQuota);
+  if (lastProviderData) {
+    renderProviderData(lastProviderData);
+  } else if (lastError && provider() === "deepseek" && !providerSettings.hasDeepseekApiKey) {
+    renderMissingDeepSeekKey();
   } else if (lastError) {
     renderError(lastError);
   } else {
@@ -214,24 +338,37 @@ elements.langBtn.addEventListener("click", () => {
   rerenderLanguage();
 });
 
+elements.codexProviderBtn.addEventListener("click", () => setProvider("codex"));
+elements.deepseekProviderBtn.addEventListener("click", () => setProvider("deepseek"));
+
+elements.deepseekKeyForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!quotaApi?.saveDeepSeekKey) return;
+
+  providerSettings = await quotaApi.saveDeepSeekKey(elements.deepseekKeyInput.value);
+  elements.deepseekKeyInput.value = "";
+  setText(elements.statusText, providerSettings.maskedDeepseekApiKey ? `${t("keySaved")} ${providerSettings.maskedDeepseekApiKey}` : t("keySaved"));
+  await refreshProviderData();
+});
+
 elements.pinBtn.addEventListener("click", async () => {
   const isActive = elements.pinBtn.classList.contains("active");
   if (!quotaApi) return;
   updatePinned(await quotaApi.setAlwaysOnTop(!isActive));
 });
 
-elements.refreshBtn.addEventListener("click", refreshQuota);
+elements.refreshBtn.addEventListener("click", refreshProviderData);
 elements.minimizeBtn.addEventListener("click", () => quotaApi?.minimize());
 elements.closeBtn.addEventListener("click", () => quotaApi?.close());
-elements.statusText.addEventListener("click", refreshQuota);
+elements.statusText.addEventListener("click", refreshProviderData);
 
 applyStaticCopy();
 
 if (quotaApi) {
-  quotaApi.onRefresh(refreshQuota);
+  quotaApi.onRefresh(refreshProviderData);
   quotaApi.onAlwaysOnTopChanged(updatePinned);
   syncPinnedState();
-  refreshQuota();
+  loadProviderSettings().then(refreshProviderData).catch(renderError);
 } else {
   updatePinned(true);
   renderError(new Error("Codex bridge unavailable."));

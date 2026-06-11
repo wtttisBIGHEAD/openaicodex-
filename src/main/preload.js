@@ -2,6 +2,10 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("codexQuota", {
   getQuota: () => ipcRenderer.invoke("quota:get"),
+  getProviderSettings: () => ipcRenderer.invoke("provider:getSettings"),
+  setProvider: (provider) => ipcRenderer.invoke("provider:setProvider", provider),
+  saveDeepSeekKey: (apiKey) => ipcRenderer.invoke("provider:saveDeepSeekKey", apiKey),
+  getProviderData: () => ipcRenderer.invoke("provider:getData"),
   minimize: () => ipcRenderer.invoke("window:minimize"),
   close: () => ipcRenderer.invoke("window:close"),
   getAlwaysOnTop: () => ipcRenderer.invoke("window:alwaysOnTop:get"),

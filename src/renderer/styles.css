@@ -40,7 +40,7 @@ button {
 .widget {
   position: relative;
   width: 390px;
-  height: 236px;
+  height: 300px;
   padding: 14px;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -73,6 +73,7 @@ button {
 }
 
 .titlebar,
+.provider-switch,
 .content,
 .status {
   position: relative;
@@ -201,13 +202,44 @@ button {
   background: rgba(255, 107, 107, 0.14);
 }
 
+.provider-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  width: 184px;
+  height: 30px;
+  margin-top: 8px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  -webkit-app-region: no-drag;
+}
+
+.provider-button {
+  min-width: 0;
+  border: 0;
+  border-radius: 6px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.provider-button.active {
+  color: var(--text);
+  background: var(--state-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-color) 42%, transparent);
+}
+
 .content {
   display: grid;
   grid-template-columns: 136px 1fr;
   gap: 14px;
   align-items: center;
-  height: 140px;
-  margin-top: 12px;
+  height: 164px;
+  margin-top: 10px;
 }
 
 .liquid-meter {
@@ -289,6 +321,13 @@ button {
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
 }
 
+body[data-provider="deepseek"] .meter-copy strong {
+  padding: 0 14px;
+  font-size: 21px;
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
 .meter-copy span {
   margin-top: 5px;
   color: rgba(255, 255, 255, 0.78);
@@ -320,6 +359,45 @@ button {
 .quota-card.slim {
   grid-column: span 2;
   min-height: 48px;
+}
+
+.key-form {
+  display: grid;
+  grid-column: span 2;
+  grid-template-columns: 1fr 48px;
+  gap: 6px;
+  min-width: 0;
+  -webkit-app-region: no-drag;
+}
+
+.key-form.hidden {
+  display: none;
+}
+
+.key-form input,
+.key-form button {
+  height: 30px;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+}
+
+.key-form input {
+  padding: 0 9px;
+  outline: none;
+}
+
+.key-form input:focus {
+  border-color: color-mix(in srgb, var(--state-color) 56%, transparent);
+  box-shadow: 0 0 0 3px var(--state-soft);
+}
+
+.key-form button {
+  cursor: pointer;
+  font-weight: 700;
 }
 
 .quota-card span {

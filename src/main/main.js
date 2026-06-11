@@ -1,17 +1,20 @@
 const { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, screen } = require("electron");
 const path = require("node:path");
+const { getDeepSeekBalance } = require("./deepseek-service");
 const { getQuota } = require("./quota-service");
+const { createSettingsStore, publicSettings } = require("./settings-service");
 
 let mainWindow;
 let tray;
 let isAlwaysOnTop = true;
+let settingsStore;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 390,
-    height: 236,
+    height: 300,
     minWidth: 390,
-    minHeight: 236,
+    minHeight: 300,
     frame: false,
     transparent: true,
     resizable: false,
@@ -93,10 +96,36 @@ function toggleWindow() {
 }
 
 app.whenReady().then(() => {
+  settingsStore = createSettingsStore(app.getPath("userData"));
   createWindow();
   createTray();
 
   ipcMain.handle("quota:get", async () => getQuota());
+  ipcMain.handle("provider:getSettings", () => {
+    return publicSettings(settingsStore.load(), process.env.DEEPSEEK_API_KEY);
+  });
+  ipcMain.handle("provider:setProvider", (_event, provider) => {
+    const current = settingsStore.load();
+    const saved = settingsStore.save({ ...current, provider });
+    return publicSettings(saved, process.env.DEEPSEEK_API_KEY);
+  });
+  ipcMain.handle("provider:saveDeepSeekKey", (_event, apiKey) => {
+    const current = settingsStore.load();
+    const saved = settingsStore.save({ ...current, provider: "deepseek", deepseekApiKey: apiKey });
+    return publicSettings(saved, process.env.DEEPSEEK_API_KEY);
+  });
+  ipcMain.handle("provider:getData", async () => {
+    const settings = settingsStore.load();
+    if (settings.provider === "deepseek") {
+      const apiKey = settings.deepseekApiKey || process.env.DEEPSEEK_API_KEY || "";
+      return getDeepSeekBalance(apiKey);
+    }
+
+    return {
+      provider: "codex",
+      ...(await getQuota())
+    };
+  });
   ipcMain.handle("window:minimize", () => mainWindow?.hide());
   ipcMain.handle("window:close", () => app.quit());
   ipcMain.handle("window:alwaysOnTop:get", () => isAlwaysOnTop);
