@@ -204,6 +204,37 @@ button {
   background: rgba(255, 107, 107, 0.14);
 }
 
+.mini-expand-button {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 4;
+  display: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 7px;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.24);
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+.mini-expand-button svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.mini-expand-button:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
 .provider-switch {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -555,6 +586,10 @@ body[data-theme="minimal"] .wave {
 body[data-mode="mini"] .widget {
   padding: 4px;
   border-radius: 14px;
+}
+
+body[data-mode="mini"] .mini-expand-button {
+  display: grid;
 }
 
 body[data-mode="mini"] .titlebar,

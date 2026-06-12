@@ -19,6 +19,7 @@ const elements = {
   modeBtn: document.getElementById("modeBtn"),
   minimizeBtn: document.getElementById("minimizeBtn"),
   closeBtn: document.getElementById("closeBtn"),
+  miniExpandBtn: document.getElementById("miniExpandBtn"),
   codexProviderBtn: document.getElementById("codexProviderBtn"),
   deepseekProviderBtn: document.getElementById("deepseekProviderBtn"),
   deepseekKeyForm: document.getElementById("deepseekKeyForm"),
@@ -154,6 +155,7 @@ function applyStaticCopy() {
   setText(elements.brandName, provider() === "deepseek" ? t("deepseekBrandName") : t("codexBrandName"));
   setButtonLabel(elements.refreshBtn, t("refresh"));
   setButtonLabel(elements.modeBtn, providerSettings.displayMode === "mini" ? t("fullMode") : t("miniMode"));
+  setButtonLabel(elements.miniExpandBtn, t("fullMode"));
   setButtonLabel(elements.minimizeBtn, t("minimize"));
   setButtonLabel(elements.closeBtn, t("close"));
   setText(elements.deepseekKeySaveBtn, t("keyButton"));
@@ -174,6 +176,7 @@ function applySettingsUi() {
   elements.darkThemeBtn.classList.toggle("active", theme === "dark");
   elements.minimalThemeBtn.classList.toggle("active", theme === "minimal");
   setButtonLabel(elements.modeBtn, displayMode === "mini" ? t("fullMode") : t("miniMode"));
+  setButtonLabel(elements.miniExpandBtn, t("fullMode"));
 }
 
 function setProviderUi() {
@@ -398,6 +401,7 @@ elements.deepseekProviderBtn.addEventListener("click", () => setProvider("deepse
 elements.modeBtn.addEventListener("click", () => {
   setDisplayMode(providerSettings.displayMode === "mini" ? "full" : "mini");
 });
+elements.miniExpandBtn.addEventListener("click", () => setDisplayMode("full"));
 
 elements.widget.addEventListener("dblclick", () => {
   if (providerSettings.displayMode === "mini") {
