@@ -7,7 +7,7 @@ const { getQuota } = require("./quota-service");
 const { createSettingsStore, publicSettings } = require("./settings-service");
 
 const WINDOW_SIZES = {
-  full: { width: 390, height: 430 },
+  full: { width: 390, height: 390 },
   mini: { width: 112, height: 48 }
 };
 const EDGE_SNAP_PX = 24;
@@ -279,12 +279,6 @@ app.whenReady().then(() => {
     return {
       ...quota,
       forecast: forecastCodex(quota, history)
-    };
-  });
-  ipcMain.handle("history:get", (_event, provider, days) => {
-    return {
-      provider,
-      entries: historyStore.getEntries(provider, days)
     };
   });
   ipcMain.handle("window:minimize", () => mainWindow?.hide());

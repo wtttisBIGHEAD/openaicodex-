@@ -6,7 +6,6 @@ contextBridge.exposeInMainWorld("codexQuota", {
   setProvider: (provider) => ipcRenderer.invoke("provider:setProvider", provider),
   saveDeepSeekKey: (apiKey) => ipcRenderer.invoke("provider:saveDeepSeekKey", apiKey),
   getProviderData: () => ipcRenderer.invoke("provider:getData"),
-  getHistory: (provider, days) => ipcRenderer.invoke("history:get", provider, days),
   minimize: () => ipcRenderer.invoke("window:minimize"),
   close: () => ipcRenderer.invoke("window:close"),
   getAlwaysOnTop: () => ipcRenderer.invoke("window:alwaysOnTop:get"),
