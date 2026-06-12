@@ -5,12 +5,18 @@ const path = require("node:path");
 
 const DEFAULT_TIMEOUT_MS = 12000;
 const OPTIONAL_ACCOUNT_TIMEOUT_MS = 2000;
+const CODEX_CLI_MISSING_MESSAGE = "未找到 Codex CLI：请先安装并登录 Codex，或切换到 DeepSeek。";
 
-function resolveCodexPath() {
-  const localAppData = process.env.LOCALAPPDATA || "";
+function resolveCodexPath(env = process.env) {
+  const localAppData = env.LOCALAPPDATA || "";
+  const appData = env.APPDATA || "";
+  const programFiles = env.ProgramFiles || env.ProgramW6432 || "C:\\Program Files";
   const candidates = [
-    process.env.CODEX_CLI_PATH,
-    path.join(localAppData, "OpenAI", "Codex", "bin", "codex.exe")
+    env.CODEX_CLI_PATH,
+    localAppData && path.join(localAppData, "OpenAI", "Codex", "bin", "codex.exe"),
+    appData && path.join(appData, "npm", "codex.cmd"),
+    appData && path.join(appData, "npm", "codex.exe"),
+    ...findWindowsAppsCodexPaths(path.join(programFiles, "WindowsApps"))
   ].filter(Boolean);
 
   for (const candidate of candidates) {
@@ -18,6 +24,27 @@ function resolveCodexPath() {
   }
 
   return "codex";
+}
+
+function findWindowsAppsCodexPaths(windowsAppsDir) {
+  try {
+    return fs
+      .readdirSync(windowsAppsDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && /^OpenAI\.Codex_/i.test(entry.name))
+      .map((entry) => path.join(windowsAppsDir, entry.name, "app", "resources", "codex.exe"))
+      .filter((candidate) => fs.existsSync(candidate))
+      .sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: "base" }));
+  } catch {
+    return [];
+  }
+}
+
+function formatCodexProcessError(error) {
+  const message = error?.message || String(error || "");
+  if (error?.code === "ENOENT" || message.includes("spawn codex ENOENT")) {
+    return new Error(CODEX_CLI_MISSING_MESSAGE);
+  }
+  return error instanceof Error ? error : new Error(message);
 }
 
 async function getQuota() {
@@ -119,8 +146,10 @@ function stringOrNull(value) {
 
 function requestRateLimits() {
   const codexPath = resolveCodexPath();
+  const useShell = process.platform === "win32" && /\.cmd$/i.test(codexPath);
   const child = spawn(codexPath, ["app-server", "--listen", "stdio://"], {
     stdio: ["pipe", "pipe", "pipe"],
+    shell: useShell,
     windowsHide: true
   });
 
@@ -169,7 +198,7 @@ function requestRateLimits() {
   return new Promise((resolve, reject) => {
     child.once("error", (error) => {
       cleanup();
-      reject(error);
+      reject(formatCodexProcessError(error));
     });
 
     child.once("exit", (code) => {
@@ -200,7 +229,7 @@ function requestRateLimits() {
         resolve({ rateLimits, account });
       } catch (error) {
         cleanup();
-        reject(new Error(stderr || error.message));
+        reject(formatCodexProcessError(new Error(stderr || error.message)));
       }
     })();
   });
@@ -228,4 +257,12 @@ function handleMessage(line, pending) {
   }
 }
 
-module.exports = { createAccountFingerprint, getQuota, normalizeAccount, normalizeSnapshot };
+module.exports = {
+  createAccountFingerprint,
+  findWindowsAppsCodexPaths,
+  formatCodexProcessError,
+  getQuota,
+  normalizeAccount,
+  normalizeSnapshot,
+  resolveCodexPath
+};

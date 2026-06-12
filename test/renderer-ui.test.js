@@ -27,3 +27,18 @@ test("forecast estimate UI omits sampling confidence details", () => {
   assert.doesNotMatch(rendererJs, /forecastPrimaryMeta|forecastSecondaryMeta|setForecastMeta|confidenceLabel/);
   assert.doesNotMatch(rendererJs, /\$\{base\}\s*·\s*\$\{item\.meta\?\.confidenceLabel\}/);
 });
+
+test("renderer sanitizes remote Codex CLI errors", () => {
+  assert.match(rendererJs, /codexCliMissing/);
+  assert.match(rendererJs, /function normalizeErrorMessage/);
+  assert.match(rendererJs, /Error invoking remote method/);
+  assert.match(rendererJs, /spawn\s+codex\s+ENOENT/);
+  assert.match(rendererJs, /lastError = normalizeErrorMessage\(error\)/);
+});
+
+test("main process uses the bundled icon for the window and tray", () => {
+  assert.match(mainJs, /function getAppIconPath/);
+  assert.match(mainJs, /icon: getAppIconPath\(\)/);
+  assert.match(mainJs, /nativeImage\.createFromPath\(getAppIconPath\(\)\)/);
+  assert.doesNotMatch(mainJs, /createFromDataURL/);
+});

@@ -68,6 +68,7 @@ const copy = {
     noWindow: "暂无窗口数据",
     retry: "点击刷新重试",
     missingKey: "请先保存 DeepSeek API Key",
+    codexCliMissing: "未找到 Codex CLI：请先安装并登录 Codex，或切换到 DeepSeek。",
     keySaved: "API Key 已保存",
     keyPlaceholder: "DeepSeek API Key",
     keyButton: "保存",
@@ -114,6 +115,7 @@ const copy = {
     noWindow: "No window data",
     retry: "Refresh to retry",
     missingKey: "Save a DeepSeek API key first",
+    codexCliMissing: "Codex CLI not found. Install and sign in to Codex, or switch to DeepSeek.",
     keySaved: "API key saved",
     keyPlaceholder: "DeepSeek API Key",
     keyButton: "Save",
@@ -159,6 +161,15 @@ function t(key) {
 
 function setText(element, text) {
   if (element) element.textContent = text;
+}
+
+function normalizeErrorMessage(error) {
+  const raw = error?.message || String(error || "");
+  const message = raw.replace(/^Error invoking remote method '[^']+':\s*(?:Error:\s*)?/, "").trim();
+  if (message.includes("spawn codex ENOENT") || message.includes("未找到 Codex CLI")) {
+    return t("codexCliMissing");
+  }
+  return message || t("retry");
 }
 
 function setButtonLabel(button, label) {
@@ -316,7 +327,7 @@ function renderMissingDeepSeekKey() {
 
 function renderError(error) {
   lastProviderData = null;
-  lastError = error?.message || String(error || t("retry"));
+  lastError = normalizeErrorMessage(error);
   document.documentElement.style.setProperty("--level", "0%");
 
   if (provider() === "deepseek") {

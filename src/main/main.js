@@ -19,6 +19,10 @@ let settingsStore;
 let historyStore;
 let saveBoundsTimer;
 
+function getAppIconPath() {
+  return path.join(__dirname, "../../assets/icon.ico");
+}
+
 function createWindow() {
   const settings = settingsStore.load();
   const size = WINDOW_SIZES[settings.displayMode] || WINDOW_SIZES.full;
@@ -34,6 +38,7 @@ function createWindow() {
     skipTaskbar: false,
     show: false,
     backgroundColor: "#00000000",
+    icon: getAppIconPath(),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -149,9 +154,7 @@ function saveWindowBounds(mode, bounds = mainWindow?.getBounds()) {
 }
 
 function createTray() {
-  const icon = nativeImage.createFromDataURL(
-    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAK0lEQVR42mNk+M9Qz0AEYBxVSFUBCzAyMjL8Z2BgYJjFqIGjBo4aOAIAgV4EfpO0k7EAAAAASUVORK5CYII="
-  );
+  const icon = nativeImage.createFromPath(getAppIconPath());
   tray = new Tray(icon);
   tray.setToolTip("Codex Quota Widget");
   rebuildTrayMenu();
