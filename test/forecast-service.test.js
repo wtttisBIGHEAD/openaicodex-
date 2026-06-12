@@ -32,7 +32,8 @@ test("forecasts Codex primary window as enough with two points over five minutes
   const result = forecastCodex(history[1], history);
 
   assert.equal(result.primary.status, "ok");
-  assert.match(result.primary.label, /预计够用/);
+  assert.match(result.primary.detail, /预计还能用/);
+  assert.doesNotMatch(result.primary.detail, /重置前/);
 });
 
 test("forecasts Codex primary window as risky when use rate is too fast", () => {
@@ -43,7 +44,7 @@ test("forecasts Codex primary window as risky when use rate is too fast", () => 
   const result = forecastCodex(history[1], history);
 
   assert.equal(result.primary.status, "warning");
-  assert.match(result.primary.detail, /用完/);
+  assert.match(result.primary.detail, /预计还能用/);
 });
 
 test("ignores Codex primary entries from older reset windows", () => {
@@ -75,7 +76,7 @@ test("forecasts Codex secondary seven-day window", () => {
   const result = forecastCodex(history[1], history);
 
   assert.equal(result.secondary.status, "warning");
-  assert.match(result.secondary.detail, /可用/);
+  assert.match(result.secondary.detail, /预计还能用/);
 });
 
 test("ignores Codex secondary entries from older reset windows", () => {
@@ -87,6 +88,8 @@ test("ignores Codex secondary entries from older reset windows", () => {
   const result = forecastCodex(history[2], history);
 
   assert.equal(result.secondary.status, "ok");
+  assert.match(result.secondary.detail, /预计还能用/);
+  assert.doesNotMatch(result.secondary.detail, /重置前/);
 });
 
 test("requires six hours for Codex secondary estimates", () => {

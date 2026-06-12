@@ -22,8 +22,7 @@ function forecastCodexPrimary(quota, historyEntries) {
     resetLabel: "5小时",
     enoughLabel: "5小时预计够用",
     lowLabel: "5小时消耗很低",
-    insufficientLabel: "5小时数据不足",
-    warningPrefix: "预计"
+    insufficientLabel: "5小时数据不足"
   });
 }
 
@@ -37,8 +36,7 @@ function forecastCodexSecondary(quota, historyEntries) {
     resetLabel: "7天",
     enoughLabel: "7天预计够用",
     lowLabel: "7天消耗很低",
-    insufficientLabel: "7天数据不足",
-    warningPrefix: "按当前速度还可用"
+    insufficientLabel: "7天数据不足"
   });
 }
 
@@ -56,7 +54,7 @@ function forecastPercentWindow(points, options) {
 
   const usedDelta = Number(latest.window.usedPercent) - Number(earliest.window.usedPercent);
   if (!Number.isFinite(usedDelta) || usedDelta <= EPSILON) {
-    return ok(options.lowLabel, "按当前速度不会在重置前用完");
+    return ok(options.lowLabel, "最近消耗很低，暂时无法估算用完时间");
   }
 
   const hoursDelta = spanMs / 3600000;
@@ -71,13 +69,13 @@ function forecastPercentWindow(points, options) {
 
   const hoursUntilEmpty = remaining / usedPercentPerHour;
   const hoursUntilReset = (resetMs - latestMs) / 3600000;
+  const duration = options.resetLabel === "7天" ? formatDaysOrHours(hoursUntilEmpty / 24) : formatHoursOrMinutes(hoursUntilEmpty);
+  const detail = `预计还能用 ${duration}`;
 
   if (hoursUntilEmpty > hoursUntilReset) {
-    return ok(options.enoughLabel, "按当前速度不会在重置前用完");
+    return ok(options.enoughLabel, detail);
   }
 
-  const duration = options.resetLabel === "7天" ? formatDaysOrHours(hoursUntilEmpty / 24) : formatHoursOrMinutes(hoursUntilEmpty);
-  const detail = options.resetLabel === "7天" ? `${options.warningPrefix} ${duration}` : `${options.warningPrefix} ${duration} 后用完`;
   return warning(`${options.resetLabel}窗口风险`, detail);
 }
 
