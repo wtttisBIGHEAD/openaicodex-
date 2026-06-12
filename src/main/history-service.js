@@ -42,11 +42,13 @@ function appendEntry(filePath, entry, options = {}) {
   const now = options.now ? Date.parse(options.now) : Date.now();
   const history = pruneHistory(loadHistory(filePath), DEFAULT_RETENTION_DAYS, now);
   const fetchedAtMs = Date.parse(normalized.fetchedAt);
-  const entries = history.entries.filter((existing) => {
-    return !(existing.provider === normalized.provider && Math.abs(Date.parse(existing.fetchedAt) - fetchedAtMs) < DEDUPE_WINDOW_MS);
+  const hasNearbyEntry = history.entries.some((existing) => {
+    return existing.provider === normalized.provider && Math.abs(Date.parse(existing.fetchedAt) - fetchedAtMs) < DEDUPE_WINDOW_MS;
   });
 
-  entries.push(normalized);
+  if (hasNearbyEntry) return saveHistory(filePath, history);
+
+  const entries = [...history.entries, normalized];
   return saveHistory(filePath, { version: HISTORY_VERSION, entries: entries.sort(compareFetchedAt) });
 }
 

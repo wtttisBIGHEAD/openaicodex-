@@ -8,9 +8,24 @@ const {
   normalizeCodexHistoryEntry,
   normalizeDeepSeekHistoryEntry
 } = require("../src/main/history-service");
+const { forecastCodex } = require("../src/main/forecast-service");
 
 function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "codex-widget-history-"));
+}
+
+function codexEntry(fetchedAt, primaryUsed) {
+  return {
+    provider: "codex",
+    fetchedAt,
+    remainingPercent: 100 - primaryUsed,
+    usedPercent: primaryUsed,
+    primary: {
+      remainingPercent: 100 - primaryUsed,
+      usedPercent: primaryUsed,
+      resetsAt: "2026-06-12T14:00:00.000Z"
+    }
+  };
 }
 
 test("loads empty history when no file exists", () => {
@@ -60,14 +75,30 @@ test("normalizes DeepSeek history entries", () => {
   });
 });
 
-test("deduplicates entries for the same provider within five minutes", () => {
+test("keeps the first entry for the same provider within five minutes", () => {
   const store = createHistoryStore(tempDir());
   store.append({ provider: "deepseek", fetchedAt: "2026-06-12T10:00:00.000Z", currency: "CNY", totalBalance: 20, isAvailable: true });
   store.append({ provider: "deepseek", fetchedAt: "2026-06-12T10:04:00.000Z", currency: "CNY", totalBalance: 19, isAvailable: true });
 
   const history = store.load();
   assert.equal(history.entries.length, 1);
-  assert.equal(history.entries[0].totalBalance, 19);
+  assert.equal(history.entries[0].totalBalance, 20);
+  assert.equal(history.entries[0].fetchedAt, "2026-06-12T10:00:00.000Z");
+});
+
+test("frequent refreshes within five minutes do not delay Codex primary estimates", () => {
+  const store = createHistoryStore(tempDir());
+  store.append(codexEntry("2026-06-12T10:00:00.000Z", 20));
+  store.append(codexEntry("2026-06-12T10:03:00.000Z", 25));
+  store.append(codexEntry("2026-06-12T10:04:30.000Z", 30));
+  const history = store.append(codexEntry("2026-06-12T10:06:00.000Z", 32));
+  const forecast = forecastCodex(codexEntry("2026-06-12T10:06:00.000Z", 32), history.entries);
+
+  assert.deepEqual(
+    history.entries.map((entry) => entry.fetchedAt),
+    ["2026-06-12T10:00:00.000Z", "2026-06-12T10:06:00.000Z"]
+  );
+  assert.notEqual(forecast.primary.status, "unknown");
 });
 
 test("keeps entries outside the five-minute dedupe window", () => {
