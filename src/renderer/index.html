@@ -69,6 +69,15 @@
           <span id="opacityLabel">透明度</span>
           <input id="opacityRange" type="range" min="60" max="100" value="82" />
         </label>
+        <label class="refresh-control" title="自动刷新">
+          <span id="autoRefreshLabel">自动</span>
+          <select id="autoRefreshSelect">
+            <option value="0">关</option>
+            <option value="15">15m</option>
+            <option value="30">30m</option>
+            <option value="60">60m</option>
+          </select>
+        </label>
       </section>
 
       <section class="content">
@@ -103,6 +112,25 @@
             <button id="deepseekKeySaveBtn" type="submit">保存</button>
           </form>
         </div>
+      </section>
+
+      <section id="forecastPanel" class="forecast-panel">
+        <div class="forecast-row">
+          <span id="forecastPrimaryLabel">5小时</span>
+          <strong id="forecastPrimaryText">数据不足</strong>
+        </div>
+        <div class="forecast-row">
+          <span id="forecastSecondaryLabel">7天</span>
+          <strong id="forecastSecondaryText">数据不足</strong>
+        </div>
+      </section>
+
+      <section class="trend-panel">
+        <div class="trend-header">
+          <span id="trendTitle">趋势</span>
+          <span id="trendStatus">数据不足</span>
+        </div>
+        <canvas id="trendChart" width="330" height="52" aria-label="趋势图"></canvas>
       </section>
 
       <footer class="status">

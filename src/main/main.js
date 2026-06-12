@@ -1,11 +1,13 @@
 const { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, screen } = require("electron");
 const path = require("node:path");
 const { getDeepSeekBalance } = require("./deepseek-service");
+const { forecastCodex, forecastDeepSeek } = require("./forecast-service");
+const { createHistoryStore } = require("./history-service");
 const { getQuota } = require("./quota-service");
 const { createSettingsStore, publicSettings } = require("./settings-service");
 
 const WINDOW_SIZES = {
-  full: { width: 390, height: 340 },
+  full: { width: 390, height: 430 },
   mini: { width: 112, height: 48 }
 };
 const EDGE_SNAP_PX = 24;
@@ -14,6 +16,7 @@ let mainWindow;
 let tray;
 let isAlwaysOnTop = true;
 let settingsStore;
+let historyStore;
 let saveBoundsTimer;
 
 function createWindow() {
@@ -210,6 +213,12 @@ function updateAppearance(theme, opacity) {
   return publicSettings(saved, process.env.DEEPSEEK_API_KEY);
 }
 
+function updateAutoRefresh(autoRefreshMins) {
+  const settings = settingsStore.load();
+  const saved = settingsStore.save({ ...settings, autoRefreshMins });
+  return publicSettings(saved, process.env.DEEPSEEK_API_KEY);
+}
+
 function setAlwaysOnTop(value) {
   isAlwaysOnTop = Boolean(value);
   if (mainWindow) {
@@ -232,6 +241,7 @@ function toggleWindow() {
 
 app.whenReady().then(() => {
   settingsStore = createSettingsStore(app.getPath("userData"));
+  historyStore = createHistoryStore(app.getPath("userData"));
   createWindow();
   createTray();
 
@@ -253,12 +263,28 @@ app.whenReady().then(() => {
     const settings = settingsStore.load();
     if (settings.provider === "deepseek") {
       const apiKey = settings.deepseekApiKey || process.env.DEEPSEEK_API_KEY || "";
-      return getDeepSeekBalance(apiKey);
+      const balance = await getDeepSeekBalance(apiKey);
+      const history = historyStore.append(balance).entries;
+      return {
+        ...balance,
+        forecast: forecastDeepSeek(balance, history)
+      };
     }
 
-    return {
+    const quota = {
       provider: "codex",
       ...(await getQuota())
+    };
+    const history = historyStore.append(quota).entries;
+    return {
+      ...quota,
+      forecast: forecastCodex(quota, history)
+    };
+  });
+  ipcMain.handle("history:get", (_event, provider, days) => {
+    return {
+      provider,
+      entries: historyStore.getEntries(provider, days)
     };
   });
   ipcMain.handle("window:minimize", () => mainWindow?.hide());
@@ -273,6 +299,9 @@ app.whenReady().then(() => {
   });
   ipcMain.handle("settings:updateAppearance", (_event, appearance) => {
     return updateAppearance(appearance?.theme, appearance?.opacity);
+  });
+  ipcMain.handle("settings:updateAutoRefresh", (_event, autoRefreshMins) => {
+    return updateAutoRefresh(autoRefreshMins);
   });
   ipcMain.handle("external:openCodex", () => {
     shell.openPath(path.join(process.env.LOCALAPPDATA || "", "OpenAI", "Codex", "bin", "codex.exe"));

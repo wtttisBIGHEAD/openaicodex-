@@ -14,7 +14,8 @@ const DEFAULT_SETTINGS = {
     mini: null
   },
   theme: "glass",
-  opacity: 0.82
+  opacity: 0.82,
+  autoRefreshMins: 30
 };
 
 test("loads default settings when no file exists", () => {
@@ -37,7 +38,8 @@ test("saves normalized provider, api key, window, and appearance settings", () =
       mini: { x: 30, y: 40, width: 112, height: 48 }
     },
     theme: "minimal",
-    opacity: 0.66
+    opacity: 0.66,
+    autoRefreshMins: 15
   });
 
   assert.deepEqual(saved, {
@@ -49,7 +51,8 @@ test("saves normalized provider, api key, window, and appearance settings", () =
       mini: { x: 30, y: 40, width: 112, height: 48 }
     },
     theme: "minimal",
-    opacity: 0.66
+    opacity: 0.66,
+    autoRefreshMins: 15
   });
   assert.deepEqual(store.load(), saved);
 });
@@ -73,6 +76,7 @@ test("clamps invalid display and appearance settings", () => {
     displayMode: "tiny",
     theme: "rainbow",
     opacity: 0.1,
+    autoRefreshMins: 999,
     windowBounds: {
       full: { x: "bad", y: 20, width: 10, height: 10 },
       mini: { x: 30.8, y: 40.2, width: 112.9, height: 48.1 }
@@ -82,6 +86,7 @@ test("clamps invalid display and appearance settings", () => {
   assert.equal(normalized.displayMode, "full");
   assert.equal(normalized.theme, "glass");
   assert.equal(normalized.opacity, 0.6);
+  assert.equal(normalized.autoRefreshMins, 30);
   assert.equal(normalized.windowBounds.full, null);
   assert.deepEqual(normalized.windowBounds.mini, { x: 31, y: 40, width: 113, height: 48 });
 });
@@ -92,7 +97,8 @@ test("public settings include appearance without leaking the api key", () => {
     deepseekApiKey: "sk-1234567890",
     displayMode: "mini",
     theme: "dark",
-    opacity: 0.9
+    opacity: 0.9,
+    autoRefreshMins: 60
   });
 
   assert.equal(result.hasDeepseekApiKey, true);
@@ -101,6 +107,11 @@ test("public settings include appearance without leaking the api key", () => {
   assert.equal(result.displayMode, "mini");
   assert.equal(result.theme, "dark");
   assert.equal(result.opacity, 0.9);
+  assert.equal(result.autoRefreshMins, 60);
+});
+
+test("allows disabling auto refresh", () => {
+  assert.equal(normalizeSettings({ autoRefreshMins: 0 }).autoRefreshMins, 0);
 });
 
 test("masks api keys without leaking the full value", () => {

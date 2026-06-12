@@ -11,11 +11,13 @@ const DEFAULT_SETTINGS = {
     mini: null
   },
   theme: "glass",
-  opacity: 0.82
+  opacity: 0.82,
+  autoRefreshMins: 30
 };
 
 const THEMES = new Set(["glass", "dark", "minimal"]);
 const DISPLAY_MODES = new Set(["full", "mini"]);
+const AUTO_REFRESH_MINS = new Set([0, 15, 30, 60]);
 
 function createSettingsStore(userDataPath) {
   const filePath = path.join(userDataPath, SETTINGS_FILE);
@@ -51,7 +53,8 @@ function normalizeSettings(settings = {}) {
     displayMode: DISPLAY_MODES.has(settings.displayMode) ? settings.displayMode : DEFAULT_SETTINGS.displayMode,
     windowBounds: normalizeWindowBounds(settings.windowBounds),
     theme: THEMES.has(settings.theme) ? settings.theme : DEFAULT_SETTINGS.theme,
-    opacity: clampOpacity(settings.opacity)
+    opacity: clampOpacity(settings.opacity),
+    autoRefreshMins: normalizeAutoRefreshMins(settings.autoRefreshMins)
   };
 }
 
@@ -65,7 +68,8 @@ function publicSettings(settings, fallbackApiKey = "") {
     displayMode: settings.displayMode,
     windowBounds: settings.windowBounds,
     theme: settings.theme,
-    opacity: settings.opacity
+    opacity: settings.opacity,
+    autoRefreshMins: settings.autoRefreshMins
   };
 }
 
@@ -99,6 +103,11 @@ function clampOpacity(value) {
   const opacity = Number(value);
   if (!Number.isFinite(opacity)) return DEFAULT_SETTINGS.opacity;
   return Math.max(0.6, Math.min(1, Math.round(opacity * 100) / 100));
+}
+
+function normalizeAutoRefreshMins(value) {
+  const minutes = Number(value);
+  return AUTO_REFRESH_MINS.has(minutes) ? minutes : DEFAULT_SETTINGS.autoRefreshMins;
 }
 
 function cloneDefaultSettings() {

@@ -77,6 +77,8 @@ button {
 .provider-switch,
 .appearance-controls,
 .content,
+.forecast-panel,
+.trend-panel,
 .status {
   position: relative;
   z-index: 1;
@@ -268,7 +270,7 @@ button {
 
 .appearance-controls {
   display: grid;
-  grid-template-columns: 1fr 124px;
+  grid-template-columns: 1fr 116px 68px;
   gap: 8px;
   align-items: center;
   margin-top: 8px;
@@ -334,6 +336,40 @@ button {
   accent-color: var(--state-color);
 }
 
+.refresh-control {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  -webkit-app-region: no-drag;
+}
+
+.refresh-control span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.refresh-control select {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  color: var(--text);
+  background: transparent;
+  font-size: 10px;
+  font-weight: 700;
+  outline: none;
+}
+
 .content {
   display: grid;
   grid-template-columns: 136px 1fr;
@@ -341,6 +377,82 @@ button {
   align-items: center;
   height: 164px;
   margin-top: 8px;
+}
+
+.forecast-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+body[data-provider="deepseek"] .forecast-panel {
+  grid-template-columns: 1fr;
+}
+
+.forecast-row {
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.forecast-row.hidden {
+  display: none;
+}
+
+.forecast-row span {
+  display: block;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.forecast-row strong {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.forecast-row strong[data-status="warning"] {
+  color: #ffd166;
+}
+
+.forecast-row strong[data-status="unknown"] {
+  color: var(--muted);
+}
+
+.trend-panel {
+  margin-top: 8px;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.trend-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.trend-panel canvas {
+  display: block;
+  width: 100%;
+  height: 52px;
 }
 
 .liquid-meter {
@@ -596,6 +708,8 @@ body[data-mode="mini"] .titlebar,
 body[data-mode="mini"] .provider-switch,
 body[data-mode="mini"] .appearance-controls,
 body[data-mode="mini"] .quota-panel,
+body[data-mode="mini"] .forecast-panel,
+body[data-mode="mini"] .trend-panel,
 body[data-mode="mini"] .status,
 body[data-mode="mini"] .ambient {
   display: none;

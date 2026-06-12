@@ -30,6 +30,16 @@ const elements = {
   minimalThemeBtn: document.getElementById("minimalThemeBtn"),
   opacityLabel: document.getElementById("opacityLabel"),
   opacityRange: document.getElementById("opacityRange"),
+  autoRefreshLabel: document.getElementById("autoRefreshLabel"),
+  autoRefreshSelect: document.getElementById("autoRefreshSelect"),
+  forecastPanel: document.getElementById("forecastPanel"),
+  forecastPrimaryLabel: document.getElementById("forecastPrimaryLabel"),
+  forecastPrimaryText: document.getElementById("forecastPrimaryText"),
+  forecastSecondaryLabel: document.getElementById("forecastSecondaryLabel"),
+  forecastSecondaryText: document.getElementById("forecastSecondaryText"),
+  trendTitle: document.getElementById("trendTitle"),
+  trendStatus: document.getElementById("trendStatus"),
+  trendChart: document.getElementById("trendChart"),
   widget: document.querySelector(".widget")
 };
 
@@ -64,6 +74,12 @@ const copy = {
     keyPlaceholder: "DeepSeek API Key",
     keyButton: "保存",
     opacityLabel: "透明度",
+    autoRefreshLabel: "自动",
+    forecastPrimaryCodex: "5小时",
+    forecastSecondaryCodex: "7天",
+    forecastDeepSeek: "余额",
+    trendTitle: "趋势",
+    insufficientData: "数据不足",
     miniMode: "迷你模式",
     fullMode: "完整模式",
     savedKey: "已保存",
@@ -105,6 +121,12 @@ const copy = {
     keyPlaceholder: "DeepSeek API Key",
     keyButton: "Save",
     opacityLabel: "Opacity",
+    autoRefreshLabel: "Auto",
+    forecastPrimaryCodex: "5h",
+    forecastSecondaryCodex: "7d",
+    forecastDeepSeek: "Balance",
+    trendTitle: "Trend",
+    insufficientData: "Not enough data",
     miniMode: "Mini mode",
     fullMode: "Full mode",
     savedKey: "Saved",
@@ -126,10 +148,13 @@ let providerSettings = {
   keySource: "none",
   displayMode: "full",
   theme: "glass",
-  opacity: 0.82
+  opacity: 0.82,
+  autoRefreshMins: 30
 };
 let lastProviderData = null;
 let lastError = null;
+let autoRefreshTimer = null;
+let refreshInFlight = false;
 const quotaApi = window.codexQuota;
 
 function t(key) {
@@ -160,6 +185,8 @@ function applyStaticCopy() {
   setButtonLabel(elements.closeBtn, t("close"));
   setText(elements.deepseekKeySaveBtn, t("keyButton"));
   setText(elements.opacityLabel, t("opacityLabel"));
+  setText(elements.autoRefreshLabel, t("autoRefreshLabel"));
+  setText(elements.trendTitle, t("trendTitle"));
   elements.deepseekKeyInput.placeholder = t("keyPlaceholder");
 }
 
@@ -172,6 +199,7 @@ function applySettingsUi() {
   elements.body.dataset.theme = theme;
   document.documentElement.style.setProperty("--widget-opacity", String(opacity));
   elements.opacityRange.value = String(Math.round(opacity * 100));
+  elements.autoRefreshSelect.value = String(providerSettings.autoRefreshMins ?? 30);
   elements.glassThemeBtn.classList.toggle("active", theme === "glass");
   elements.darkThemeBtn.classList.toggle("active", theme === "dark");
   elements.minimalThemeBtn.classList.toggle("active", theme === "minimal");
@@ -236,6 +264,7 @@ function renderProviderData(data) {
   } else {
     renderQuota(data);
   }
+  renderForecast(data?.forecast);
 }
 
 function renderQuota(quota) {
@@ -286,6 +315,8 @@ function renderMissingDeepSeekKey() {
   setText(elements.secondaryText, "--");
   setText(elements.planLabel, t("planLabelDeepSeek"));
   setText(elements.planText, "--");
+  renderForecast(null);
+  renderTrend([]);
   setState("error");
 }
 
@@ -311,6 +342,8 @@ function renderError(error) {
   setText(elements.primaryText, "--");
   setText(elements.secondaryText, "--");
   setText(elements.planText, "--");
+  renderForecast(null);
+  renderTrend([]);
   setState("error");
 }
 
@@ -327,6 +360,13 @@ async function updateAppearance(theme, opacity) {
   applySettingsUi();
 }
 
+async function updateAutoRefresh(autoRefreshMins) {
+  if (!quotaApi?.updateAutoRefresh) return;
+  providerSettings = await quotaApi.updateAutoRefresh(Number(autoRefreshMins));
+  applySettingsUi();
+  restartAutoRefreshTimer();
+}
+
 async function setDisplayMode(mode) {
   if (!quotaApi?.setDisplayMode) return;
   providerSettings = await quotaApi.setDisplayMode(mode);
@@ -335,6 +375,7 @@ async function setDisplayMode(mode) {
 }
 
 async function refreshProviderData() {
+  if (refreshInFlight) return;
   setProviderUi();
 
   if (provider() === "deepseek" && !providerSettings.hasDeepseekApiKey) {
@@ -343,11 +384,15 @@ async function refreshProviderData() {
   }
 
   setLoading();
+  refreshInFlight = true;
   try {
     const data = quotaApi.getProviderData ? await quotaApi.getProviderData() : await quotaApi.getQuota();
     renderProviderData(data);
+    await refreshTrend();
   } catch (error) {
     renderError(error);
+  } finally {
+    refreshInFlight = false;
   }
 }
 
@@ -356,7 +401,106 @@ async function setProvider(providerName) {
   providerSettings = await quotaApi.setProvider(providerName);
   applySettingsUi();
   setProviderUi();
+  restartAutoRefreshTimer();
   await refreshProviderData();
+}
+
+function restartAutoRefreshTimer() {
+  clearInterval(autoRefreshTimer);
+  autoRefreshTimer = null;
+  const minutes = Number(providerSettings.autoRefreshMins);
+  if (!Number.isFinite(minutes) || minutes <= 0) return;
+  autoRefreshTimer = setInterval(refreshProviderData, minutes * 60 * 1000);
+}
+
+function renderForecast(forecast) {
+  const isDeepSeek = provider() === "deepseek";
+
+  if (!forecast) {
+    setText(elements.forecastPrimaryLabel, isDeepSeek ? t("forecastDeepSeek") : t("forecastPrimaryCodex"));
+    setText(elements.forecastPrimaryText, t("insufficientData"));
+    elements.forecastPrimaryText.dataset.status = "unknown";
+    setText(elements.forecastSecondaryLabel, t("forecastSecondaryCodex"));
+    setText(elements.forecastSecondaryText, t("insufficientData"));
+    elements.forecastSecondaryText.dataset.status = "unknown";
+    elements.forecastSecondaryLabel.parentElement.classList.toggle("hidden", isDeepSeek);
+    return;
+  }
+
+  if (forecast.provider === "deepseek") {
+    const item = forecast.balance;
+    setText(elements.forecastPrimaryLabel, t("forecastDeepSeek"));
+    setText(elements.forecastPrimaryText, item?.detail || item?.label || t("insufficientData"));
+    elements.forecastPrimaryText.dataset.status = item?.status || "unknown";
+    elements.forecastSecondaryText.dataset.status = "unknown";
+    elements.forecastSecondaryLabel.parentElement.classList.add("hidden");
+    return;
+  }
+
+  elements.forecastSecondaryLabel.parentElement.classList.remove("hidden");
+  setText(elements.forecastPrimaryLabel, t("forecastPrimaryCodex"));
+  setText(elements.forecastPrimaryText, forecast.primary?.detail || forecast.primary?.label || t("insufficientData"));
+  elements.forecastPrimaryText.dataset.status = forecast.primary?.status || "unknown";
+  setText(elements.forecastSecondaryLabel, t("forecastSecondaryCodex"));
+  setText(elements.forecastSecondaryText, forecast.secondary?.detail || forecast.secondary?.label || t("insufficientData"));
+  elements.forecastSecondaryText.dataset.status = forecast.secondary?.status || "unknown";
+}
+
+async function refreshTrend() {
+  if (!quotaApi?.getHistory) return;
+  const currentProvider = provider();
+  const days = currentProvider === "deepseek" ? 7 : 1;
+  const history = await quotaApi.getHistory(currentProvider, days);
+  renderTrend(history.entries || []);
+}
+
+function renderTrend(entries) {
+  const canvas = elements.trendChart;
+  const context = canvas.getContext("2d");
+  const currentProvider = provider();
+  const points = entries
+    .map((entry) => ({
+      at: Date.parse(entry.fetchedAt),
+      value: currentProvider === "deepseek" ? Number(entry.totalBalance) : Number(entry.remainingPercent)
+    }))
+    .filter((point) => Number.isFinite(point.at) && Number.isFinite(point.value))
+    .sort((a, b) => a.at - b.at);
+
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  setText(elements.trendStatus, points.length >= 2 ? `${points.length}` : t("insufficientData"));
+
+  if (points.length < 2) return;
+
+  const padding = 6;
+  const minX = points[0].at;
+  const maxX = points[points.length - 1].at;
+  const values = points.map((point) => point.value);
+  const minY = Math.min(...values);
+  const maxY = Math.max(...values);
+  const yRange = maxY - minY || 1;
+  const width = canvas.width - padding * 2;
+  const height = canvas.height - padding * 2;
+
+  context.strokeStyle = "rgba(255,255,255,0.16)";
+  context.lineWidth = 1;
+  context.beginPath();
+  context.moveTo(padding, canvas.height - padding);
+  context.lineTo(canvas.width - padding, canvas.height - padding);
+  context.stroke();
+
+  context.strokeStyle = getComputedStyle(elements.body).getPropertyValue("--state-color").trim() || "#3ddc84";
+  context.lineWidth = 2;
+  context.beginPath();
+  points.forEach((point, index) => {
+    const x = padding + ((point.at - minX) / (maxX - minX || 1)) * width;
+    const y = padding + (1 - (point.value - minY) / yRange) * height;
+    if (index === 0) {
+      context.moveTo(x, y);
+    } else {
+      context.lineTo(x, y);
+    }
+  });
+  context.stroke();
 }
 
 async function syncPinnedState() {
@@ -422,6 +566,9 @@ elements.opacityRange.addEventListener("input", () => {
 elements.opacityRange.addEventListener("change", () => {
   updateAppearance(providerSettings.theme, Number(elements.opacityRange.value) / 100);
 });
+elements.autoRefreshSelect.addEventListener("change", () => {
+  updateAutoRefresh(elements.autoRefreshSelect.value);
+});
 
 elements.deepseekKeyForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -455,7 +602,12 @@ if (quotaApi) {
     applySettingsUi();
   });
   syncPinnedState();
-  loadProviderSettings().then(refreshProviderData).catch(renderError);
+  loadProviderSettings()
+    .then(() => {
+      restartAutoRefreshTimer();
+      return refreshProviderData();
+    })
+    .catch(renderError);
 } else {
   updatePinned(true);
   renderError(new Error("Codex bridge unavailable."));

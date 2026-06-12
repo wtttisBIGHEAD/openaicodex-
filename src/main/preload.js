@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld("codexQuota", {
   setProvider: (provider) => ipcRenderer.invoke("provider:setProvider", provider),
   saveDeepSeekKey: (apiKey) => ipcRenderer.invoke("provider:saveDeepSeekKey", apiKey),
   getProviderData: () => ipcRenderer.invoke("provider:getData"),
+  getHistory: (provider, days) => ipcRenderer.invoke("history:get", provider, days),
   minimize: () => ipcRenderer.invoke("window:minimize"),
   close: () => ipcRenderer.invoke("window:close"),
   getAlwaysOnTop: () => ipcRenderer.invoke("window:alwaysOnTop:get"),
@@ -13,6 +14,7 @@ contextBridge.exposeInMainWorld("codexQuota", {
   setDisplayMode: (mode) => ipcRenderer.invoke("window:setDisplayMode", mode),
   saveWindowBounds: () => ipcRenderer.invoke("window:saveBounds"),
   updateAppearance: (appearance) => ipcRenderer.invoke("settings:updateAppearance", appearance),
+  updateAutoRefresh: (autoRefreshMins) => ipcRenderer.invoke("settings:updateAutoRefresh", autoRefreshMins),
   openCodex: () => ipcRenderer.invoke("external:openCodex"),
   onRefresh: (callback) => {
     ipcRenderer.on("quota:refresh", callback);
