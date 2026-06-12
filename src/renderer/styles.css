@@ -8,6 +8,7 @@
   --line: rgba(255, 255, 255, 0.2);
   --text: #f6f8fb;
   --muted: rgba(246, 248, 251, 0.66);
+  --widget-opacity: 0.82;
   --state-color: #3ddc84;
   --state-soft: rgba(61, 220, 132, 0.22);
   --level: 0%;
@@ -39,15 +40,15 @@ button {
 
 .widget {
   position: relative;
-  width: 390px;
-  height: 300px;
+  width: 100vw;
+  height: 100vh;
   padding: 14px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 18px;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.17), rgba(255, 255, 255, 0.04)),
-    var(--surface);
+    rgba(15, 18, 24, var(--widget-opacity));
   box-shadow:
     0 20px 50px rgba(0, 0, 0, 0.38),
     inset 0 1px 0 rgba(255, 255, 255, 0.22);
@@ -74,6 +75,7 @@ button {
 
 .titlebar,
 .provider-switch,
+.appearance-controls,
 .content,
 .status {
   position: relative;
@@ -233,13 +235,81 @@ button {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-color) 42%, transparent);
 }
 
+.appearance-controls {
+  display: grid;
+  grid-template-columns: 1fr 124px;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.theme-switch {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  min-width: 0;
+  height: 30px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.theme-button {
+  min-width: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 6px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 10px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.theme-button.active {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.opacity-control {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.opacity-control span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.opacity-control input {
+  width: 100%;
+  min-width: 0;
+  accent-color: var(--state-color);
+}
+
 .content {
   display: grid;
   grid-template-columns: 136px 1fr;
   gap: 14px;
   align-items: center;
   height: 164px;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .liquid-meter {
@@ -422,7 +492,7 @@ body[data-provider="deepseek"] .meter-copy strong {
   align-items: center;
   gap: 8px;
   height: 24px;
-  margin-top: 8px;
+  margin-top: 6px;
   color: var(--muted);
   font-size: 12px;
 }
@@ -450,6 +520,76 @@ body[data-state="error"] {
 body[data-state="loading"] {
   --state-color: #8aa0bd;
   --state-soft: rgba(138, 160, 189, 0.2);
+}
+
+body[data-theme="dark"] {
+  --surface: rgba(5, 7, 11, 0.92);
+  --line: rgba(255, 255, 255, 0.13);
+  --muted: rgba(246, 248, 251, 0.58);
+}
+
+body[data-theme="dark"] .widget {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02)),
+    rgba(5, 7, 11, var(--widget-opacity));
+}
+
+body[data-theme="minimal"] {
+  --line: rgba(255, 255, 255, 0.18);
+  --muted: rgba(255, 255, 255, 0.62);
+}
+
+body[data-theme="minimal"] .widget {
+  border-radius: 12px;
+  background: rgba(20, 22, 26, var(--widget-opacity));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(12px);
+}
+
+body[data-theme="minimal"] .ambient,
+body[data-theme="minimal"] .shine,
+body[data-theme="minimal"] .wave {
+  display: none;
+}
+
+body[data-mode="mini"] .widget {
+  padding: 4px;
+  border-radius: 14px;
+}
+
+body[data-mode="mini"] .titlebar,
+body[data-mode="mini"] .provider-switch,
+body[data-mode="mini"] .appearance-controls,
+body[data-mode="mini"] .quota-panel,
+body[data-mode="mini"] .status,
+body[data-mode="mini"] .ambient {
+  display: none;
+}
+
+body[data-mode="mini"] .content {
+  display: block;
+  height: 100%;
+  margin: 0;
+}
+
+body[data-mode="mini"] .liquid-meter {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+}
+
+body[data-mode="mini"] .meter-copy strong {
+  padding: 0 8px;
+  font-size: 21px;
+  line-height: 1;
+}
+
+body[data-mode="mini"][data-provider="deepseek"] .meter-copy strong {
+  font-size: 15px;
+}
+
+body[data-mode="mini"] .meter-copy span {
+  display: none;
 }
 
 @keyframes pulse {

@@ -17,6 +17,13 @@ npm.cmd run dev
 
 Use the provider switch in the widget to choose `Codex` or `DeepSeek`.
 
+Features:
+
+- Full and mini floating modes
+- Saved window position with edge snapping
+- Glass, dark, and minimal themes
+- Adjustable widget opacity
+
 DeepSeek mode requires a DeepSeek API key. Enter it in the widget, or set it before launching:
 
 ```powershell

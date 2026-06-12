@@ -16,13 +16,20 @@ const elements = {
   langBtn: document.getElementById("langBtn"),
   pinBtn: document.getElementById("pinBtn"),
   refreshBtn: document.getElementById("refreshBtn"),
+  modeBtn: document.getElementById("modeBtn"),
   minimizeBtn: document.getElementById("minimizeBtn"),
   closeBtn: document.getElementById("closeBtn"),
   codexProviderBtn: document.getElementById("codexProviderBtn"),
   deepseekProviderBtn: document.getElementById("deepseekProviderBtn"),
   deepseekKeyForm: document.getElementById("deepseekKeyForm"),
   deepseekKeyInput: document.getElementById("deepseekKeyInput"),
-  deepseekKeySaveBtn: document.getElementById("deepseekKeySaveBtn")
+  deepseekKeySaveBtn: document.getElementById("deepseekKeySaveBtn"),
+  glassThemeBtn: document.getElementById("glassThemeBtn"),
+  darkThemeBtn: document.getElementById("darkThemeBtn"),
+  minimalThemeBtn: document.getElementById("minimalThemeBtn"),
+  opacityLabel: document.getElementById("opacityLabel"),
+  opacityRange: document.getElementById("opacityRange"),
+  widget: document.querySelector(".widget")
 };
 
 const copy = {
@@ -55,6 +62,9 @@ const copy = {
     keySaved: "API Key 已保存",
     keyPlaceholder: "DeepSeek API Key",
     keyButton: "保存",
+    opacityLabel: "透明度",
+    miniMode: "迷你模式",
+    fullMode: "完整模式",
     savedKey: "已保存",
     envKey: "来自环境变量",
     noKey: "未配置",
@@ -93,6 +103,9 @@ const copy = {
     keySaved: "API key saved",
     keyPlaceholder: "DeepSeek API Key",
     keyButton: "Save",
+    opacityLabel: "Opacity",
+    miniMode: "Mini mode",
+    fullMode: "Full mode",
     savedKey: "Saved",
     envKey: "From environment",
     noKey: "Not configured",
@@ -105,7 +118,15 @@ const copy = {
 };
 
 let language = localStorage.getItem("language") || (navigator.language.startsWith("zh") ? "zh" : "en");
-let providerSettings = { provider: "codex", hasDeepseekApiKey: false, maskedDeepseekApiKey: "", keySource: "none" };
+let providerSettings = {
+  provider: "codex",
+  hasDeepseekApiKey: false,
+  maskedDeepseekApiKey: "",
+  keySource: "none",
+  displayMode: "full",
+  theme: "glass",
+  opacity: 0.82
+};
 let lastProviderData = null;
 let lastError = null;
 const quotaApi = window.codexQuota;
@@ -132,10 +153,27 @@ function applyStaticCopy() {
   setText(elements.langBtn, t("langButton"));
   setText(elements.brandName, provider() === "deepseek" ? t("deepseekBrandName") : t("codexBrandName"));
   setButtonLabel(elements.refreshBtn, t("refresh"));
+  setButtonLabel(elements.modeBtn, providerSettings.displayMode === "mini" ? t("fullMode") : t("miniMode"));
   setButtonLabel(elements.minimizeBtn, t("minimize"));
   setButtonLabel(elements.closeBtn, t("close"));
   setText(elements.deepseekKeySaveBtn, t("keyButton"));
+  setText(elements.opacityLabel, t("opacityLabel"));
   elements.deepseekKeyInput.placeholder = t("keyPlaceholder");
+}
+
+function applySettingsUi() {
+  const displayMode = providerSettings.displayMode === "mini" ? "mini" : "full";
+  const theme = ["glass", "dark", "minimal"].includes(providerSettings.theme) ? providerSettings.theme : "glass";
+  const opacity = Number.isFinite(Number(providerSettings.opacity)) ? Number(providerSettings.opacity) : 0.82;
+
+  elements.body.dataset.mode = displayMode;
+  elements.body.dataset.theme = theme;
+  document.documentElement.style.setProperty("--widget-opacity", String(opacity));
+  elements.opacityRange.value = String(Math.round(opacity * 100));
+  elements.glassThemeBtn.classList.toggle("active", theme === "glass");
+  elements.darkThemeBtn.classList.toggle("active", theme === "dark");
+  elements.minimalThemeBtn.classList.toggle("active", theme === "minimal");
+  setButtonLabel(elements.modeBtn, displayMode === "mini" ? t("fullMode") : t("miniMode"));
 }
 
 function setProviderUi() {
@@ -276,6 +314,20 @@ function renderError(error) {
 async function loadProviderSettings() {
   if (!quotaApi?.getProviderSettings) return;
   providerSettings = await quotaApi.getProviderSettings();
+  applySettingsUi();
+  setProviderUi();
+}
+
+async function updateAppearance(theme, opacity) {
+  if (!quotaApi?.updateAppearance) return;
+  providerSettings = await quotaApi.updateAppearance({ theme, opacity });
+  applySettingsUi();
+}
+
+async function setDisplayMode(mode) {
+  if (!quotaApi?.setDisplayMode) return;
+  providerSettings = await quotaApi.setDisplayMode(mode);
+  applySettingsUi();
   setProviderUi();
 }
 
@@ -299,6 +351,7 @@ async function refreshProviderData() {
 async function setProvider(providerName) {
   if (!quotaApi?.setProvider) return;
   providerSettings = await quotaApi.setProvider(providerName);
+  applySettingsUi();
   setProviderUi();
   await refreshProviderData();
 }
@@ -319,6 +372,7 @@ function updatePinned(isPinned) {
 function rerenderLanguage() {
   localStorage.setItem("language", language);
   applyStaticCopy();
+  applySettingsUi();
   setProviderUi();
   syncPinnedState();
 
@@ -341,11 +395,36 @@ elements.langBtn.addEventListener("click", () => {
 elements.codexProviderBtn.addEventListener("click", () => setProvider("codex"));
 elements.deepseekProviderBtn.addEventListener("click", () => setProvider("deepseek"));
 
+elements.modeBtn.addEventListener("click", () => {
+  setDisplayMode(providerSettings.displayMode === "mini" ? "full" : "mini");
+});
+
+elements.widget.addEventListener("dblclick", () => {
+  if (providerSettings.displayMode === "mini") {
+    setDisplayMode("full");
+  }
+});
+
+elements.glassThemeBtn.addEventListener("click", () => updateAppearance("glass", providerSettings.opacity));
+elements.darkThemeBtn.addEventListener("click", () => updateAppearance("dark", providerSettings.opacity));
+elements.minimalThemeBtn.addEventListener("click", () => updateAppearance("minimal", providerSettings.opacity));
+elements.opacityRange.addEventListener("input", () => {
+  providerSettings = {
+    ...providerSettings,
+    opacity: Number(elements.opacityRange.value) / 100
+  };
+  applySettingsUi();
+});
+elements.opacityRange.addEventListener("change", () => {
+  updateAppearance(providerSettings.theme, Number(elements.opacityRange.value) / 100);
+});
+
 elements.deepseekKeyForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!quotaApi?.saveDeepSeekKey) return;
 
   providerSettings = await quotaApi.saveDeepSeekKey(elements.deepseekKeyInput.value);
+  applySettingsUi();
   elements.deepseekKeyInput.value = "";
   setText(elements.statusText, providerSettings.maskedDeepseekApiKey ? `${t("keySaved")} ${providerSettings.maskedDeepseekApiKey}` : t("keySaved"));
   await refreshProviderData();
@@ -367,6 +446,10 @@ applyStaticCopy();
 if (quotaApi) {
   quotaApi.onRefresh(refreshProviderData);
   quotaApi.onAlwaysOnTopChanged(updatePinned);
+  quotaApi.onDisplayModeChanged?.((displayMode) => {
+    providerSettings = { ...providerSettings, displayMode };
+    applySettingsUi();
+  });
   syncPinnedState();
   loadProviderSettings().then(refreshProviderData).catch(renderError);
 } else {

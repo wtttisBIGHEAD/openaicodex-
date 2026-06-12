@@ -31,6 +31,11 @@
               <path d="M20 12a8 8 0 0 1-13.7 5.7M4 12A8 8 0 0 1 17.7 6.3M17 3v4h-4M7 21v-4h4" />
             </svg>
           </button>
+          <button id="modeBtn" class="icon-button" title="迷你模式" aria-label="迷你模式">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
+            </svg>
+          </button>
           <button id="minimizeBtn" class="icon-button" title="隐藏" aria-label="隐藏">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M5 12h14" />
@@ -48,6 +53,18 @@
         <button id="codexProviderBtn" class="provider-button active" type="button">Codex</button>
         <button id="deepseekProviderBtn" class="provider-button" type="button">DeepSeek</button>
       </div>
+
+      <section class="appearance-controls" aria-label="外观设置">
+        <div class="theme-switch" role="group" aria-label="主题">
+          <button id="glassThemeBtn" class="theme-button active" type="button">Glass</button>
+          <button id="darkThemeBtn" class="theme-button" type="button">Dark</button>
+          <button id="minimalThemeBtn" class="theme-button" type="button">Minimal</button>
+        </div>
+        <label class="opacity-control" title="透明度">
+          <span id="opacityLabel">透明度</span>
+          <input id="opacityRange" type="range" min="60" max="100" value="82" />
+        </label>
+      </section>
 
       <section class="content">
         <div id="liquidMeter" class="liquid-meter" aria-label="Codex 剩余额度">
