@@ -443,8 +443,7 @@ function renderForecast(forecast) {
 
 function formatForecastDisplay(item) {
   if (!item) return t("insufficientData");
-  const base = item.detail || item.label || t("insufficientData");
-  return item.meta?.confidenceLabel ? `${base} · ${item.meta.confidenceLabel}` : base;
+  return item.detail || item.label || t("insufficientData");
 }
 
 function formatMiniForecast(item, prefix) {

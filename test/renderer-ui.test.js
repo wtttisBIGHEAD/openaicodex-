@@ -21,3 +21,9 @@ test("mini mode has a compact forecast target", () => {
   assert.match(rendererJs, /formatForecastDisplay/);
   assert.match(rendererJs, /formatMiniForecast/);
 });
+
+test("forecast estimate UI omits sampling confidence details", () => {
+  assert.doesNotMatch(indexHtml, /forecastPrimaryMeta|forecastSecondaryMeta|forecast-meta/);
+  assert.doesNotMatch(rendererJs, /forecastPrimaryMeta|forecastSecondaryMeta|setForecastMeta|confidenceLabel/);
+  assert.doesNotMatch(rendererJs, /\$\{base\}\s*·\s*\$\{item\.meta\?\.confidenceLabel\}/);
+});
