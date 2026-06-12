@@ -370,6 +370,16 @@ button {
   outline: none;
 }
 
+.refresh-control select option {
+  color: #111827;
+  background: #f8fafc;
+}
+
+.refresh-control select option:checked {
+  color: #0f172a;
+  background: #dbeafe;
+}
+
 .content {
   display: grid;
   grid-template-columns: 136px 1fr;
