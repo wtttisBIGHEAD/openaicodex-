@@ -14,3 +14,10 @@ test("trend chart UI and IPC are not exposed", () => {
   assert.doesNotMatch(preloadJs, /getHistory/);
   assert.doesNotMatch(mainJs, /history:get/);
 });
+
+test("mini mode has a compact forecast target", () => {
+  assert.match(indexHtml, /id="miniForecast"/);
+  assert.match(rendererJs, /miniForecast/);
+  assert.match(rendererJs, /formatForecastDisplay/);
+  assert.match(rendererJs, /formatMiniForecast/);
+});

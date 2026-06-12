@@ -14,16 +14,22 @@ function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "codex-widget-history-"));
 }
 
-function codexEntry(fetchedAt, primaryUsed) {
+function codexEntry(fetchedAt, primaryUsed, options = {}) {
   return {
     provider: "codex",
     fetchedAt,
+    accountFingerprint: options.accountFingerprint || "account-a",
     remainingPercent: 100 - primaryUsed,
     usedPercent: primaryUsed,
     primary: {
       remainingPercent: 100 - primaryUsed,
       usedPercent: primaryUsed,
-      resetsAt: "2026-06-12T14:00:00.000Z"
+      resetsAt: options.primaryReset || "2026-06-12T14:00:00.000Z"
+    },
+    secondary: {
+      remainingPercent: 80,
+      usedPercent: 20,
+      resetsAt: "2026-06-18T10:00:00.000Z"
     }
   };
 }
@@ -37,6 +43,7 @@ test("normalizes Codex history entries", () => {
   const entry = normalizeCodexHistoryEntry({
     provider: "codex",
     fetchedAt: "2026-06-12T10:00:00.000Z",
+    accountFingerprint: "account-a",
     remainingPercent: 72,
     usedPercent: 28,
     primary: {
@@ -52,6 +59,7 @@ test("normalizes Codex history entries", () => {
   });
 
   assert.equal(entry.provider, "codex");
+  assert.equal(entry.accountFingerprint, "account-a");
   assert.equal(entry.remainingPercent, 72);
   assert.equal(entry.primary.resetsAt, "2026-06-12T14:00:00.000Z");
   assert.equal(entry.secondary.usedPercent, 36);
@@ -86,19 +94,51 @@ test("keeps the first entry for the same provider within five minutes", () => {
   assert.equal(history.entries[0].fetchedAt, "2026-06-12T10:00:00.000Z");
 });
 
-test("frequent refreshes within five minutes do not delay Codex primary estimates", () => {
+test("keeps Codex samples in the same five-hour window when spaced over thirty seconds", () => {
   const store = createHistoryStore(tempDir());
   store.append(codexEntry("2026-06-12T10:00:00.000Z", 20));
-  store.append(codexEntry("2026-06-12T10:03:00.000Z", 25));
-  store.append(codexEntry("2026-06-12T10:04:30.000Z", 30));
-  const history = store.append(codexEntry("2026-06-12T10:06:00.000Z", 32));
-  const forecast = forecastCodex(codexEntry("2026-06-12T10:06:00.000Z", 32), history.entries);
+  store.append(codexEntry("2026-06-12T10:01:00.000Z", 25));
+  const history = store.append(codexEntry("2026-06-12T10:02:00.000Z", 30));
+  const forecast = forecastCodex(codexEntry("2026-06-12T10:02:00.000Z", 30), history.entries);
 
   assert.deepEqual(
     history.entries.map((entry) => entry.fetchedAt),
-    ["2026-06-12T10:00:00.000Z", "2026-06-12T10:06:00.000Z"]
+    ["2026-06-12T10:00:00.000Z", "2026-06-12T10:01:00.000Z", "2026-06-12T10:02:00.000Z"]
   );
-  assert.notEqual(forecast.primary.status, "unknown");
+  assert.equal(forecast.primary.meta.sampleCount, 3);
+});
+
+test("ignores duplicate Codex samples within thirty seconds", () => {
+  const store = createHistoryStore(tempDir());
+  store.append(codexEntry("2026-06-12T10:00:00.000Z", 20));
+  store.append(codexEntry("2026-06-12T10:00:20.000Z", 21));
+
+  assert.deepEqual(
+    store.load().entries.map((entry) => entry.fetchedAt),
+    ["2026-06-12T10:00:00.000Z"]
+  );
+});
+
+test("keeps the first sample for a new Codex five-hour window even when close in time", () => {
+  const store = createHistoryStore(tempDir());
+  store.append(codexEntry("2026-06-12T10:00:00.000Z", 99, { primaryReset: "2026-06-12T10:00:20.000Z" }));
+  store.append(codexEntry("2026-06-12T10:00:20.000Z", 1, { primaryReset: "2026-06-12T15:00:20.000Z" }));
+
+  assert.deepEqual(
+    store.load().entries.map((entry) => entry.primary.resetsAt),
+    ["2026-06-12T10:00:20.000Z", "2026-06-12T15:00:20.000Z"]
+  );
+});
+
+test("resets Codex history when the account fingerprint changes", () => {
+  const store = createHistoryStore(tempDir());
+  store.append(codexEntry("2026-06-12T10:00:00.000Z", 20, { accountFingerprint: "account-a" }));
+  store.append(codexEntry("2026-06-12T10:01:00.000Z", 25, { accountFingerprint: "account-a" }));
+  store.append(codexEntry("2026-06-12T10:02:00.000Z", 1, { accountFingerprint: "account-b" }));
+
+  const codexEntries = store.load().entries.filter((entry) => entry.provider === "codex");
+  assert.equal(codexEntries.length, 1);
+  assert.equal(codexEntries[0].accountFingerprint, "account-b");
 });
 
 test("keeps entries outside the five-minute dedupe window", () => {

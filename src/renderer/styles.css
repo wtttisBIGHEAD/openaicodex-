@@ -533,6 +533,10 @@ body[data-provider="deepseek"] .meter-copy strong {
   font-weight: 600;
 }
 
+.mini-forecast {
+  display: none;
+}
+
 .quota-panel {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -713,16 +717,29 @@ body[data-mode="mini"] .liquid-meter {
 
 body[data-mode="mini"] .meter-copy strong {
   padding: 0 8px;
-  font-size: 21px;
+  font-size: 19px;
   line-height: 1;
 }
 
 body[data-mode="mini"][data-provider="deepseek"] .meter-copy strong {
-  font-size: 15px;
+  font-size: 14px;
 }
 
 body[data-mode="mini"] .meter-copy span {
   display: none;
+}
+
+body[data-mode="mini"] .meter-copy .mini-forecast {
+  display: block;
+  max-width: 96px;
+  margin: 3px auto 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @keyframes pulse {

@@ -11,6 +11,7 @@ const elements = {
   secondaryText: document.getElementById("secondaryText"),
   planLabel: document.getElementById("planLabel"),
   planText: document.getElementById("planText"),
+  miniForecast: document.getElementById("miniForecast"),
   statusDot: document.getElementById("statusDot"),
   statusText: document.getElementById("statusText"),
   langBtn: document.getElementById("langBtn"),
@@ -415,26 +416,46 @@ function renderForecast(forecast) {
     setText(elements.forecastSecondaryText, t("insufficientData"));
     elements.forecastSecondaryText.dataset.status = "unknown";
     elements.forecastSecondaryLabel.parentElement.classList.toggle("hidden", isDeepSeek);
+    setText(elements.miniForecast, isDeepSeek ? "余额 --" : "5h --");
     return;
   }
 
   if (forecast.provider === "deepseek") {
     const item = forecast.balance;
     setText(elements.forecastPrimaryLabel, t("forecastDeepSeek"));
-    setText(elements.forecastPrimaryText, item?.detail || item?.label || t("insufficientData"));
+    setText(elements.forecastPrimaryText, formatForecastDisplay(item));
     elements.forecastPrimaryText.dataset.status = item?.status || "unknown";
     elements.forecastSecondaryText.dataset.status = "unknown";
     elements.forecastSecondaryLabel.parentElement.classList.add("hidden");
+    setText(elements.miniForecast, formatMiniForecast(item, "余额"));
     return;
   }
 
   elements.forecastSecondaryLabel.parentElement.classList.remove("hidden");
   setText(elements.forecastPrimaryLabel, t("forecastPrimaryCodex"));
-  setText(elements.forecastPrimaryText, forecast.primary?.detail || forecast.primary?.label || t("insufficientData"));
+  setText(elements.forecastPrimaryText, formatForecastDisplay(forecast.primary));
   elements.forecastPrimaryText.dataset.status = forecast.primary?.status || "unknown";
   setText(elements.forecastSecondaryLabel, t("forecastSecondaryCodex"));
-  setText(elements.forecastSecondaryText, forecast.secondary?.detail || forecast.secondary?.label || t("insufficientData"));
+  setText(elements.forecastSecondaryText, formatForecastDisplay(forecast.secondary));
   elements.forecastSecondaryText.dataset.status = forecast.secondary?.status || "unknown";
+  setText(elements.miniForecast, formatMiniForecast(forecast.primary, "5h"));
+}
+
+function formatForecastDisplay(item) {
+  if (!item) return t("insufficientData");
+  const base = item.detail || item.label || t("insufficientData");
+  return item.meta?.confidenceLabel ? `${base} · ${item.meta.confidenceLabel}` : base;
+}
+
+function formatMiniForecast(item, prefix) {
+  if (!item) return `${prefix} --`;
+  if (item.status === "unknown") return `${prefix} 数据不足`;
+  const detail = item.detail || item.label || "";
+  if (detail.includes("预计还能用 ")) {
+    return `${prefix} ${detail.replace("预计还能用 ", "")}`;
+  }
+  if (detail.includes("消耗很低")) return `${prefix} 低消耗`;
+  return `${prefix} --`;
 }
 
 async function syncPinnedState() {

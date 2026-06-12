@@ -5,6 +5,7 @@ const HISTORY_FILE = "history.json";
 const HISTORY_VERSION = 1;
 const DEFAULT_RETENTION_DAYS = 30;
 const DEDUPE_WINDOW_MS = 5 * 60 * 1000;
+const CODEX_SAMPLE_WINDOW_MS = 30 * 1000;
 
 function createHistoryStore(userDataPath) {
   const filePath = path.join(userDataPath, HISTORY_FILE);
@@ -41,15 +42,50 @@ function appendEntry(filePath, entry, options = {}) {
 
   const now = options.now ? Date.parse(options.now) : Date.now();
   const history = pruneHistory(loadHistory(filePath), DEFAULT_RETENTION_DAYS, now);
+  const historyEntries = resetCodexEntriesForAccountChange(history.entries, normalized);
   const fetchedAtMs = Date.parse(normalized.fetchedAt);
-  const hasNearbyEntry = history.entries.some((existing) => {
-    return existing.provider === normalized.provider && Math.abs(Date.parse(existing.fetchedAt) - fetchedAtMs) < DEDUPE_WINDOW_MS;
+  const hasNearbyEntry = historyEntries.some((existing) => {
+    return isDuplicateSample(existing, normalized, fetchedAtMs);
   });
 
-  if (hasNearbyEntry) return saveHistory(filePath, history);
+  if (hasNearbyEntry) return saveHistory(filePath, { version: HISTORY_VERSION, entries: historyEntries });
 
-  const entries = [...history.entries, normalized];
+  const entries = [...historyEntries, normalized];
   return saveHistory(filePath, { version: HISTORY_VERSION, entries: entries.sort(compareFetchedAt) });
+}
+
+function resetCodexEntriesForAccountChange(entries, normalized) {
+  if (normalized.provider !== "codex" || !normalized.accountFingerprint) return entries;
+
+  const codexEntries = entries.filter((entry) => entry.provider === "codex");
+  if (codexEntries.length === 0) return entries;
+
+  const latestFingerprint = [...codexEntries]
+    .reverse()
+    .find((entry) => entry.accountFingerprint)?.accountFingerprint;
+
+  if (latestFingerprint === normalized.accountFingerprint) return entries;
+  return entries.filter((entry) => entry.provider !== "codex");
+}
+
+function isDuplicateSample(existing, normalized, fetchedAtMs) {
+  if (existing.provider !== normalized.provider) return false;
+  const existingFetchedAtMs = Date.parse(existing.fetchedAt);
+  const deltaMs = Math.abs(existingFetchedAtMs - fetchedAtMs);
+
+  if (normalized.provider !== "codex") return deltaMs < DEDUPE_WINDOW_MS;
+
+  const existingReset = existing.primary?.resetsAt;
+  const normalizedReset = normalized.primary?.resetsAt;
+  if (existingReset && normalizedReset && existingReset !== normalizedReset) return false;
+  if (isTerminalCodexSample(normalized)) return false;
+  return deltaMs < CODEX_SAMPLE_WINDOW_MS;
+}
+
+function isTerminalCodexSample(entry) {
+  const primary = entry.primary;
+  if (!primary) return false;
+  return Number(primary.usedPercent) >= 100 || Number(primary.remainingPercent) <= 0;
 }
 
 function saveHistory(filePath, history) {
@@ -82,6 +118,7 @@ function normalizeCodexHistoryEntry(quota) {
   return {
     provider: "codex",
     fetchedAt,
+    accountFingerprint: quota.accountFingerprint ? String(quota.accountFingerprint) : null,
     remainingPercent: normalizePercent(quota.remainingPercent),
     usedPercent: normalizePercent(quota.usedPercent),
     primary: normalizeCodexWindow(quota.primary),

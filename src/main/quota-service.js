@@ -1,8 +1,10 @@
 const { spawn } = require("node:child_process");
+const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
 const DEFAULT_TIMEOUT_MS = 12000;
+const OPTIONAL_ACCOUNT_TIMEOUT_MS = 2000;
 
 function resolveCodexPath() {
   const localAppData = process.env.LOCALAPPDATA || "";
@@ -20,16 +22,21 @@ function resolveCodexPath() {
 
 async function getQuota() {
   const response = await requestRateLimits();
+  const normalizedAccount = normalizeAccount(response.account);
   const snapshot =
-    response.rateLimitsByLimitId?.codex ||
-    response.rateLimits ||
-    firstSnapshot(response.rateLimitsByLimitId);
+    response.rateLimits?.rateLimitsByLimitId?.codex ||
+    response.rateLimits?.rateLimits ||
+    firstSnapshot(response.rateLimits?.rateLimitsByLimitId);
 
   if (!snapshot) {
     throw new Error("Codex did not return a rate-limit snapshot.");
   }
 
-  return normalizeSnapshot(snapshot);
+  return {
+    ...normalizeSnapshot(snapshot),
+    accountFingerprint: normalizedAccount?.accountFingerprint || null,
+    accountPlanType: normalizedAccount?.planType || null
+  };
 }
 
 function firstSnapshot(map) {
@@ -74,6 +81,42 @@ function clampPercent(value) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
+function normalizeAccount(account) {
+  if (!account || typeof account !== "object") return null;
+  const email = stringOrNull(account.email || account.user?.email || account.account?.email);
+  const accountId = stringOrNull(account.id || account.accountId || account.userId || account.account?.id || account.user?.id);
+  const planType = stringOrNull(account.planType || account.chatgptPlanType || account.plan?.type || account.account?.planType);
+  const type = stringOrNull(account.type || account.accountType || account.authType);
+  const accountFingerprint = createAccountFingerprint({ accountId, email, planType, type });
+
+  if (!accountFingerprint) return null;
+  return {
+    accountFingerprint,
+    email,
+    planType,
+    type
+  };
+}
+
+function createAccountFingerprint(account = {}) {
+  const parts = [
+    stringOrNull(account.accountId || account.id),
+    stringOrNull(account.email)?.toLowerCase(),
+    stringOrNull(account.planType)?.toLowerCase(),
+    stringOrNull(account.type)?.toLowerCase()
+  ].filter(Boolean);
+
+  if (parts.length === 0) return null;
+  const hash = crypto.createHash("sha256").update(parts.join("|")).digest("hex");
+  return `codex-account:${hash}`;
+}
+
+function stringOrNull(value) {
+  if (value === undefined || value === null) return null;
+  const text = String(value).trim();
+  return text || null;
+}
+
 function requestRateLimits() {
   const codexPath = resolveCodexPath();
   const child = spawn(codexPath, ["app-server", "--listen", "stdio://"], {
@@ -94,7 +137,7 @@ function requestRateLimits() {
     if (!child.killed) child.kill();
   };
 
-  const send = (method, params) => {
+  const send = (method, params, timeoutMs = DEFAULT_TIMEOUT_MS) => {
     const id = nextId++;
     const payload = params === undefined ? { id, method } : { id, method, params };
     child.stdin.write(`${JSON.stringify(payload)}\n`);
@@ -103,7 +146,7 @@ function requestRateLimits() {
       const timer = setTimeout(() => {
         pending.delete(id);
         reject(new Error(`Codex request timed out: ${method}`));
-      }, DEFAULT_TIMEOUT_MS);
+      }, timeoutMs);
       pending.set(id, { resolve, reject, timer });
     });
   };
@@ -146,9 +189,15 @@ function requestRateLimits() {
           },
           capabilities: null
         });
-        const result = await send("account/rateLimits/read");
+        const rateLimits = await send("account/rateLimits/read");
+        let account = null;
+        try {
+          account = await send("account/read", undefined, OPTIONAL_ACCOUNT_TIMEOUT_MS);
+        } catch {
+          account = null;
+        }
         cleanup();
-        resolve(result);
+        resolve({ rateLimits, account });
       } catch (error) {
         cleanup();
         reject(new Error(stderr || error.message));
@@ -179,4 +228,4 @@ function handleMessage(line, pending) {
   }
 }
 
-module.exports = { getQuota, normalizeSnapshot };
+module.exports = { createAccountFingerprint, getQuota, normalizeAccount, normalizeSnapshot };
